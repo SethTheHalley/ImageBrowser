@@ -1,10 +1,13 @@
 package seth.imagebrowser;
 
+import android.app.ProgressDialog;
 import android.app.SearchManager;
 import android.content.Context;
+import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Point;
+import android.graphics.drawable.BitmapDrawable;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.AsyncTask;
@@ -25,7 +28,9 @@ import android.widget.Toast;
 import java.io.InputStream;
 import java.lang.reflect.Array;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.ListIterator;
 
 import retrofit.Callback;
 import retrofit.RetrofitError;
@@ -37,19 +42,29 @@ import seth.imagebrowser.data.ImgurImage;
 
 public class MainActivity extends ActionBarActivity implements Callback<ImgurGallery> {
     private static final String TAG = MainActivity.class.getSimpleName();
+
+    //lists Imageobj->Link->Bmp
     private List<ImgurImage> mImages;
     private ArrayList<String> mLinks;
     private List<Bitmap> mBmps;
+    private HashMap<Bitmap, Integer> mBmpIndex;
+    private Bitmap mImg;
+
+    //layout items
     private TableLayout mTableLayout;
     private int mScreenHeight;
     private int mScreenWidth;
-    private int mResultsSize;
-    private int startIdx;
-    private int endIdx;
-    private String curQuery;
     private Button next;
     private Button back;
     private SearchView searchView;
+    private ProgressDialog mProgress;
+
+    //indicies
+    private int mResultsSize;
+    private int startIdx;
+    private int endIdx;
+
+    private String curQuery;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -58,12 +73,14 @@ public class MainActivity extends ActionBarActivity implements Callback<ImgurGal
 
         mBmps = new ArrayList<Bitmap>();
         mLinks = new ArrayList<String>();
+        mBmpIndex = new HashMap<Bitmap,Integer> ();
         mTableLayout = (TableLayout)findViewById(R.id.table_layout);
         mResultsSize = 0;
         startIdx=0;
         endIdx=4;
         curQuery=null;
 
+        //gets screen dimensions
         Display display = getWindowManager().getDefaultDisplay();
         Point size = new Point();
         display.getSize(size);
@@ -75,6 +92,7 @@ public class MainActivity extends ActionBarActivity implements Callback<ImgurGal
         back.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+                //handles indexing so that the button only moves the indices back by multiples of 5
                 if(startIdx>0)
                     startIdx-=5;
                 if(endIdx >4) {
@@ -86,18 +104,22 @@ public class MainActivity extends ActionBarActivity implements Callback<ImgurGal
                         }
                     }
                 }
-                Log.d("NEXT ", "START "+startIdx + " END "+ endIdx);
+                Log.d("PREV ", "START "+startIdx + " END "+ endIdx);
                 if(curQuery != null && startIdx >=0) {
                     retrieveImages(curQuery);
                     back.setEnabled(false);
+                    next.setEnabled(false);
+                    searchView.setEnabled(false);
                 }
             }
         });
+
         // next button
         next= (Button) findViewById(R.id.next);
         next.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+                //handles indexing so that the button only moves the indices forward by multiples of 5
                 if(mResultsSize >0 && endIdx < mResultsSize) {
                     startIdx += 5;
                     endIdx += 5;
@@ -107,6 +129,8 @@ public class MainActivity extends ActionBarActivity implements Callback<ImgurGal
                     if (curQuery != null) {
                         retrieveImages(curQuery);
                         next.setEnabled(false);
+                        back.setEnabled(false);
+                        searchView.setEnabled(false);
                     }
                 }
             }
@@ -118,7 +142,6 @@ public class MainActivity extends ActionBarActivity implements Callback<ImgurGal
     public boolean onCreateOptionsMenu(Menu menu) {
         // Inflate the menu; this adds items to the action bar if it is present.
         getMenuInflater().inflate(R.menu.menu_main, menu);
-        //return true;
 
         SearchManager searchManager = (SearchManager) getSystemService(Context.SEARCH_SERVICE);
         searchView = (SearchView)findViewById(R.id.searchView);
@@ -130,16 +153,18 @@ public class MainActivity extends ActionBarActivity implements Callback<ImgurGal
 
         SearchView.OnQueryTextListener queryTextListener = new SearchView.OnQueryTextListener() {
             public boolean onQueryTextChange(String newText) {
-                // this is your adapter that will be filtered
                 return true;
             }
 
+            //gets string from search bar
             public boolean onQueryTextSubmit(String query) {
                 Log.d(TAG, "SEARCHING FOR: " + query);
+
                 searchView.clearFocus();
                 curQuery=query;
                 startIdx=0;
                 endIdx=4;
+
                 retrieveImages(curQuery);
                 searchView.setEnabled(false);
                 return true;
@@ -189,10 +214,19 @@ public class MainActivity extends ActionBarActivity implements Callback<ImgurGal
      * @param search the city whose forecast should be retrieved.
      */
     protected void retrieveImages(String search) {
+        //clear old data
         mBmps.clear();
         mLinks.clear();
-        //mImages.clear();
         mTableLayout.removeAllViews();
+
+        // set up progress bar
+        mProgress = new ProgressDialog(this);
+        mProgress.setMessage("Finding Images...");
+        mProgress.setProgressStyle(ProgressDialog.STYLE_SPINNER);
+        mProgress.setIndeterminate(true);
+        mProgress.setCanceledOnTouchOutside(false);
+        mProgress.show();
+
         if (null == search) {
             retrieveImages(search);
             return;
@@ -202,10 +236,15 @@ public class MainActivity extends ActionBarActivity implements Callback<ImgurGal
 
     public void setImages(List<ImgurImage> imgList) {
         mImages = null == imgList ? new ArrayList<ImgurImage>() : new ArrayList<>(imgList);
-        for(ImgurImage m : mImages){
+        ListIterator listIterator = mImages.listIterator();
+        while(listIterator.hasNext()){
+            ImgurImage m = (ImgurImage)listIterator.next();
             if(!m.IsAlbum()) {
                 Log.d(TAG, m.getLink());
                 mLinks.add(m.getLink());
+            }
+            else{
+                listIterator.remove();
             }
         }
         mResultsSize = mLinks.size();
@@ -232,6 +271,8 @@ public class MainActivity extends ActionBarActivity implements Callback<ImgurGal
         protected Bitmap doInBackground(ArrayList<String>... urls) {
             len = mResultsSize;
             Log.d(TAG, "LENGTH " + len);
+
+            //edge case index handling
             if(startIdx >=len && startIdx>4){
                 startIdx-=5;
                 idx=startIdx;
@@ -240,9 +281,11 @@ public class MainActivity extends ActionBarActivity implements Callback<ImgurGal
             if(endIdx < len){
                 len=endIdx;
             }
-            //len = 5;
             Log.d(TAG, "START " + idx + " END: " + len);
             Log.d(TAG, "LENGTH " + len);
+
+            //loop through list of image URLs, get images into bmps and add to list of bmps
+            //only does 5 at a time, kind of hack-y but I need to cache images otherwise
             do {
                 String urldisplay = urls[0].get(idx);
                 Log.d(TAG,"URL:: " + urldisplay);
@@ -254,8 +297,10 @@ public class MainActivity extends ActionBarActivity implements Callback<ImgurGal
                     Log.e("Error", e.getMessage());
                     e.printStackTrace();
                 }
+                mBmpIndex.put(mIcon11,idx);
                 idx++;
                 mBmps.add(mIcon11);
+
             } while(idx<len);
             return mIcon11;
         }
@@ -265,8 +310,10 @@ public class MainActivity extends ActionBarActivity implements Callback<ImgurGal
         }
     }
 
+    //inflates the table with the list of bmps
     private void populateTable (List<Bitmap> lst) {
         for (Bitmap img : lst) {
+            mImg=img;
             final TableRow tableRow = new TableRow (MainActivity.this);
             final ImageView imageView = new ImageView (MainActivity.this);
             imageView.setImageBitmap(img);
@@ -279,6 +326,17 @@ public class MainActivity extends ActionBarActivity implements Callback<ImgurGal
                             mScreenWidth, newHeight);
                     imageView.setLayoutParams(params);
                     imageView.setScaleType(ImageView.ScaleType.CENTER_CROP);
+                    imageView.setOnClickListener(new View.OnClickListener() {
+                        @Override
+                        public void onClick(View v) {
+                            Bitmap bitmap = ((BitmapDrawable)imageView.getDrawable()).getBitmap();
+                            Intent it = new Intent(MainActivity.this, DetailActivity.class);
+                            it.putExtra("id", mImages.get(mBmpIndex.get(bitmap)).getID());
+                            it.putExtra("title",mImages.get(mBmpIndex.get(bitmap)).getTitle());
+                            it.putExtra("link", mImages.get(mBmpIndex.get(bitmap)).getLink());
+                            startActivity(it);
+                        }
+                    });
                     tableRow.updateViewLayout(imageView, params);
                 }
 
@@ -289,5 +347,6 @@ public class MainActivity extends ActionBarActivity implements Callback<ImgurGal
         next.setEnabled(true);
         back.setEnabled(true);
         searchView.setEnabled(true);
+        mProgress.dismiss();
     }
 }

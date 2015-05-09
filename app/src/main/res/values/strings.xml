@@ -10,4 +10,5 @@
     <string name="downloading_image">Downloading Image From Web...</string>
     <string name="next_page">Next Page</string>
     <string name="prev_page">Prev. Page</string>
+    <string name="detail_activity">Detail Activity</string>
 </resources>
