@@ -1,0 +1,15 @@
+Imgur API Info:
+
+For public read-only and anonymous resources, such as getting image info, looking up user comments, etc. all you need to do is send an authorization header with your client_id in your requests. This also works if you'd like to upload images anonymously (without the image being tied to an account), or if you'd like to create an anonymous album. This lets us know which application is accessing the API.
+Authorization: Client-ID YOUR_CLIENT_ID
+
+Client ID:
+	0101ce3d2a8fe7c
+Client secret:
+	cc1b97295219a1bff9cb9eabd1a873b672e15de0
+
+https://api.imgur.com/endpoints/gallery#gallery
+https://api.imgur.com/oauth2
+https://api.imgur.com/
+https://github.com/talklittle/ImgurAPIv3ExampleAndroid
+https://api.imgur.com/endpoints/gallery#gallery-search
