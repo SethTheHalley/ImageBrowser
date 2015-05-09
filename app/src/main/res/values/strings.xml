@@ -3,4 +3,9 @@
     <string name="hello_world">Hello world!</string>
     <string name="action_settings">Settings</string>
     <string name="search_fail">Failed to return search results</string>
+    <string name="no_network_connection">Error: No Network Connection Found</string>
+    <string name="download_complete">Image Download Complete</string>
+    <string name="title_activity_download_image">DownloadImage</string>
+    <string name="info">info_label</string>
+    <string name="downloading_image">Downloading Image From Web...</string>
 </resources>
