@@ -15,6 +15,7 @@ import android.view.Display;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.ScrollView;
 import android.widget.SearchView;
@@ -43,6 +44,12 @@ public class MainActivity extends ActionBarActivity implements Callback<ImgurGal
     private int mScreenHeight;
     private int mScreenWidth;
     private int mResultsSize;
+    private int startIdx;
+    private int endIdx;
+    private String curQuery;
+    private Button next;
+    private Button back;
+    private SearchView searchView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -53,12 +60,57 @@ public class MainActivity extends ActionBarActivity implements Callback<ImgurGal
         mLinks = new ArrayList<String>();
         mTableLayout = (TableLayout)findViewById(R.id.table_layout);
         mResultsSize = 0;
+        startIdx=0;
+        endIdx=4;
+        curQuery=null;
 
         Display display = getWindowManager().getDefaultDisplay();
         Point size = new Point();
         display.getSize(size);
         mScreenWidth = size.x;
         mScreenHeight = size.y;
+
+        // back button
+        back = (Button) findViewById(R.id.prev);
+        back.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if(startIdx>0)
+                    startIdx-=5;
+                if(endIdx >4) {
+                    if ((endIdx + 1) % 5 == 0){
+                        endIdx-=5;
+                    }else{
+                        while((endIdx + 1) % 5 != 0){
+                            endIdx--;
+                        }
+                    }
+                }
+                Log.d("NEXT ", "START "+startIdx + " END "+ endIdx);
+                if(curQuery != null && startIdx >=0) {
+                    retrieveImages(curQuery);
+                    back.setEnabled(false);
+                }
+            }
+        });
+        // next button
+        next= (Button) findViewById(R.id.next);
+        next.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if(mResultsSize >0 && endIdx < mResultsSize) {
+                    startIdx += 5;
+                    endIdx += 5;
+                    if(endIdx>mResultsSize)
+                        endIdx=mResultsSize;
+                    Log.d("NEXT ", "START "+startIdx + " END "+ endIdx);
+                    if (curQuery != null) {
+                        retrieveImages(curQuery);
+                        next.setEnabled(false);
+                    }
+                }
+            }
+        });
     }
 
 
@@ -69,7 +121,7 @@ public class MainActivity extends ActionBarActivity implements Callback<ImgurGal
         //return true;
 
         SearchManager searchManager = (SearchManager) getSystemService(Context.SEARCH_SERVICE);
-        final SearchView searchView = (SearchView)findViewById(R.id.searchView);
+        searchView = (SearchView)findViewById(R.id.searchView);
         if (null != searchView) {
             searchView.setSearchableInfo(searchManager
                     .getSearchableInfo(getComponentName()));
@@ -85,7 +137,11 @@ public class MainActivity extends ActionBarActivity implements Callback<ImgurGal
             public boolean onQueryTextSubmit(String query) {
                 Log.d(TAG, "SEARCHING FOR: " + query);
                 searchView.clearFocus();
-                retrieveImages(query);
+                curQuery=query;
+                startIdx=0;
+                endIdx=4;
+                retrieveImages(curQuery);
+                searchView.setEnabled(false);
                 return true;
             }
         };
@@ -176,7 +232,16 @@ public class MainActivity extends ActionBarActivity implements Callback<ImgurGal
         protected Bitmap doInBackground(ArrayList<String>... urls) {
             len = mResultsSize;
             Log.d(TAG, "LENGTH " + len);
-            len = 5;
+            if(startIdx >=len && startIdx>4){
+                startIdx-=5;
+                idx=startIdx;
+            }else
+                idx=startIdx;
+            if(endIdx < len){
+                len=endIdx;
+            }
+            //len = 5;
+            Log.d(TAG, "START " + idx + " END: " + len);
             Log.d(TAG, "LENGTH " + len);
             do {
                 String urldisplay = urls[0].get(idx);
@@ -221,5 +286,8 @@ public class MainActivity extends ActionBarActivity implements Callback<ImgurGal
             tableRow.addView(imageView);
             mTableLayout.addView (tableRow);
         }
+        next.setEnabled(true);
+        back.setEnabled(true);
+        searchView.setEnabled(true);
     }
 }
