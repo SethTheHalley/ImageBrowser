@@ -8,4 +8,6 @@
     <string name="title_activity_download_image">DownloadImage</string>
     <string name="info">info_label</string>
     <string name="downloading_image">Downloading Image From Web...</string>
+    <string name="next_page">Next Page</string>
+    <string name="prev_page">Prev. Page</string>
 </resources>

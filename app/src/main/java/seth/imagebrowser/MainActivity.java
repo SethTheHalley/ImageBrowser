@@ -1,11 +1,10 @@
 package seth.imagebrowser;
 
+import android.app.SearchManager;
 import android.content.Context;
-import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Point;
-import android.media.Image;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.AsyncTask;
@@ -15,31 +14,17 @@ import android.util.Log;
 import android.view.Display;
 import android.view.Menu;
 import android.view.MenuItem;
-import android.widget.ArrayAdapter;
-import android.widget.GridLayout;
-import android.widget.GridView;
+import android.view.View;
 import android.widget.ImageView;
-import android.widget.LinearLayout;
-import android.widget.RelativeLayout;
+import android.widget.ScrollView;
+import android.widget.SearchView;
 import android.widget.TableLayout;
 import android.widget.TableRow;
-import android.widget.TextView;
 import android.widget.Toast;
-
-import java.io.BufferedInputStream;
-import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Array;
-import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
-import java.net.URL;
 import java.util.ArrayList;
-import java.util.LinkedList;
 import java.util.List;
-import java.util.concurrent.locks.Condition;
-import java.util.concurrent.locks.ReentrantLock;
-
-import javax.xml.transform.Result;
 
 import retrofit.Callback;
 import retrofit.RetrofitError;
@@ -52,11 +37,12 @@ import seth.imagebrowser.data.ImgurImage;
 public class MainActivity extends ActionBarActivity implements Callback<ImgurGallery> {
     private static final String TAG = MainActivity.class.getSimpleName();
     private List<ImgurImage> mImages;
-    private List<String> mLinks;
+    private ArrayList<String> mLinks;
     private List<Bitmap> mBmps;
     private TableLayout mTableLayout;
     private int mScreenHeight;
     private int mScreenWidth;
+    private int mResultsSize;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -66,27 +52,13 @@ public class MainActivity extends ActionBarActivity implements Callback<ImgurGal
         mBmps = new ArrayList<Bitmap>();
         mLinks = new ArrayList<String>();
         mTableLayout = (TableLayout)findViewById(R.id.table_layout);
+        mResultsSize = 0;
 
         Display display = getWindowManager().getDefaultDisplay();
         Point size = new Point();
         display.getSize(size);
         mScreenWidth = size.x;
         mScreenHeight = size.y;
-
-        String[] urls = {"http://i.imgur.com/0Io9iUE.jpg","http://i.imgur.com/R4UlVKe.jpg","http://i.imgur.com/cxsvFTxh.gif"};
-
-        //check to see if device is connected to the internet before proceeding to download image:
-        ConnectivityManager connMgr = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
-        NetworkInfo networkInfo = connMgr.getActiveNetworkInfo();
-        if (networkInfo != null && networkInfo.isConnected()) {
-           new DownloadImageTask()
-                    .execute(urls);
-            //new DownloadImageTask((ImageView) findViewById(R.id.testImage2))
-            /*new DownloadImageTask()
-                    .execute(urlString2);*/
-        } else {
-            // display error:
-        }//end if else
     }
 
 
@@ -94,7 +66,32 @@ public class MainActivity extends ActionBarActivity implements Callback<ImgurGal
     public boolean onCreateOptionsMenu(Menu menu) {
         // Inflate the menu; this adds items to the action bar if it is present.
         getMenuInflater().inflate(R.menu.menu_main, menu);
-        return true;
+        //return true;
+
+        SearchManager searchManager = (SearchManager) getSystemService(Context.SEARCH_SERVICE);
+        final SearchView searchView = (SearchView)findViewById(R.id.searchView);
+        if (null != searchView) {
+            searchView.setSearchableInfo(searchManager
+                    .getSearchableInfo(getComponentName()));
+            searchView.setIconifiedByDefault(false);
+        }
+
+        SearchView.OnQueryTextListener queryTextListener = new SearchView.OnQueryTextListener() {
+            public boolean onQueryTextChange(String newText) {
+                // this is your adapter that will be filtered
+                return true;
+            }
+
+            public boolean onQueryTextSubmit(String query) {
+                Log.d(TAG, "SEARCHING FOR: " + query);
+                searchView.clearFocus();
+                retrieveImages(query);
+                return true;
+            }
+        };
+        searchView.setOnQueryTextListener(queryTextListener);
+
+        return super.onCreateOptionsMenu(menu);
     }
 
     @Override
@@ -127,7 +124,7 @@ public class MainActivity extends ActionBarActivity implements Callback<ImgurGal
     @Override
     protected void onStart() {
         super.onStart();
-        retrieveImages("cats");
+        //retrieveImages("cats");
     }
 
     /**
@@ -136,6 +133,10 @@ public class MainActivity extends ActionBarActivity implements Callback<ImgurGal
      * @param search the city whose forecast should be retrieved.
      */
     protected void retrieveImages(String search) {
+        mBmps.clear();
+        mLinks.clear();
+        //mImages.clear();
+        mTableLayout.removeAllViews();
         if (null == search) {
             retrieveImages(search);
             return;
@@ -151,9 +152,18 @@ public class MainActivity extends ActionBarActivity implements Callback<ImgurGal
                 mLinks.add(m.getLink());
             }
         }
+        mResultsSize = mLinks.size();
+        //check to see if device is connected to the internet before proceeding to download image:
+        ConnectivityManager connMgr = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+        NetworkInfo networkInfo = connMgr.getActiveNetworkInfo();
+        if (networkInfo != null && networkInfo.isConnected()) {
+            new DownloadImageTask().execute(mLinks);
+        } else {
+            // display error:
+        }
     }
 
-    private class DownloadImageTask extends AsyncTask<String[], Integer, Bitmap> {
+    private class DownloadImageTask extends AsyncTask<ArrayList<String>, Integer, Bitmap> {
         int idx;
         Bitmap mIcon11;
         int len;
@@ -163,11 +173,13 @@ public class MainActivity extends ActionBarActivity implements Callback<ImgurGal
         }
 
         @Override
-        protected Bitmap doInBackground(String[]... urls) {
-            len = Array.getLength(urls[0]);
+        protected Bitmap doInBackground(ArrayList<String>... urls) {
+            len = mResultsSize;
+            Log.d(TAG, "LENGTH " + len);
+            len = 5;
             Log.d(TAG, "LENGTH " + len);
             do {
-                String urldisplay = urls[0][idx];
+                String urldisplay = urls[0].get(idx);
                 Log.d(TAG,"URL:: " + urldisplay);
                 mIcon11 = null;
                 try {
