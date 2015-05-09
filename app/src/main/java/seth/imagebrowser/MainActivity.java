@@ -29,12 +29,17 @@ import android.widget.Toast;
 import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.Array;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.ReentrantLock;
+
+import javax.xml.transform.Result;
 
 import retrofit.Callback;
 import retrofit.RetrofitError;
@@ -47,6 +52,7 @@ import seth.imagebrowser.data.ImgurImage;
 public class MainActivity extends ActionBarActivity implements Callback<ImgurGallery> {
     private static final String TAG = MainActivity.class.getSimpleName();
     private List<ImgurImage> mImages;
+    private List<String> mLinks;
     private List<Bitmap> mBmps;
     private TableLayout mTableLayout;
     private int mScreenHeight;
@@ -58,6 +64,7 @@ public class MainActivity extends ActionBarActivity implements Callback<ImgurGal
         setContentView(R.layout.activity_main);
 
         mBmps = new ArrayList<Bitmap>();
+        mLinks = new ArrayList<String>();
         mTableLayout = (TableLayout)findViewById(R.id.table_layout);
 
         Display display = getWindowManager().getDefaultDisplay();
@@ -66,27 +73,20 @@ public class MainActivity extends ActionBarActivity implements Callback<ImgurGal
         mScreenWidth = size.x;
         mScreenHeight = size.y;
 
-        //(ImageView)findViewById(R.id.testImage).getResources();
-        String urlString = "http://i.imgur.com/0Io9iUE.jpg";
-        String urlString2 = "http://i.imgur.com/R4UlVKe.jpg";
-        //mWinnerMessage.setText(message);
+        String[] urls = {"http://i.imgur.com/0Io9iUE.jpg","http://i.imgur.com/R4UlVKe.jpg","http://i.imgur.com/cxsvFTxh.gif"};
 
         //check to see if device is connected to the internet before proceeding to download image:
         ConnectivityManager connMgr = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
         NetworkInfo networkInfo = connMgr.getActiveNetworkInfo();
         if (networkInfo != null && networkInfo.isConnected()) {
-            // fetch data:
-            //new DownloadImageTask((ImageView) findViewById(R.id.testImage))
-            new DownloadImageTask()
-                    .execute(urlString);
+           new DownloadImageTask()
+                    .execute(urls);
             //new DownloadImageTask((ImageView) findViewById(R.id.testImage2))
-            new DownloadImageTask()
-                    .execute(urlString2);
+            /*new DownloadImageTask()
+                    .execute(urlString2);*/
         } else {
             // display error:
         }//end if else
-        //populateTable(mBmps);
-        //prepDownloadImageActivity("cat");
     }
 
 
@@ -115,7 +115,6 @@ public class MainActivity extends ActionBarActivity implements Callback<ImgurGal
     @Override
     public void success(ImgurGallery imgurGallery, Response response) {
         Log.d(TAG, "Retrieved Images!");
-
         setImages(imgurGallery.getGalleryImages());
     }
 
@@ -141,46 +140,50 @@ public class MainActivity extends ActionBarActivity implements Callback<ImgurGal
             retrieveImages(search);
             return;
         }
-
         ApiUtils.getImgurService().searchGallery(search, this);
     }
 
     public void setImages(List<ImgurImage> imgList) {
         mImages = null == imgList ? new ArrayList<ImgurImage>() : new ArrayList<>(imgList);
-        ImgurImage img = mImages.get(0);
-        //Log.d(TAG,img.getLink());
-       // Log.d(TAG,mImages.get(1).getLink());
         for(ImgurImage m : mImages){
-            if(!m.IsAlbum())
-                Log.d(TAG,m.getLink());
+            if(!m.IsAlbum()) {
+                Log.d(TAG, m.getLink());
+                mLinks.add(m.getLink());
+            }
         }
     }
 
-    private class DownloadImageTask extends AsyncTask<String, Void, Bitmap> {
-        ImageView bmImage;
+    private class DownloadImageTask extends AsyncTask<String[], Integer, Bitmap> {
+        int idx;
+        Bitmap mIcon11;
+        int len;
 
-        public DownloadImageTask(ImageView bmImage) {
-            this.bmImage = bmImage;
+        public DownloadImageTask(){
+            idx = 0;
         }
-        public DownloadImageTask(){}
 
-        protected Bitmap doInBackground(String... urls) {
-            String urldisplay = urls[0];
-            Bitmap mIcon11 = null;
-            try {
-                InputStream in = new java.net.URL(urldisplay).openStream();
-                mIcon11 = BitmapFactory.decodeStream(in);
-            } catch (Exception e) {
-                Log.e("Error", e.getMessage());
-                e.printStackTrace();
-            }
+        @Override
+        protected Bitmap doInBackground(String[]... urls) {
+            len = Array.getLength(urls[0]);
+            Log.d(TAG, "LENGTH " + len);
+            do {
+                String urldisplay = urls[0][idx];
+                Log.d(TAG,"URL:: " + urldisplay);
+                mIcon11 = null;
+                try {
+                    InputStream in = new java.net.URL(urldisplay).openStream();
+                    mIcon11 = BitmapFactory.decodeStream(in);
+                } catch (Exception e) {
+                    Log.e("Error", e.getMessage());
+                    e.printStackTrace();
+                }
+                idx++;
+                mBmps.add(mIcon11);
+            } while(idx<len);
             return mIcon11;
         }
 
-        protected void onPostExecute(Bitmap result) {
-            //bmImage.setImageBitmap(result);
-            if(result != null)
-            mBmps.add(result);
+        protected void onPostExecute(Bitmap result){
             populateTable(mBmps);
         }
     }
@@ -194,16 +197,9 @@ public class MainActivity extends ActionBarActivity implements Callback<ImgurGal
 
                 @Override
                 public void run() {
-                    int newHeight = getWindowManager().getDefaultDisplay().getHeight() / 2;
-                    int orgWidth = imageView.getWidth();
-                    int orgHeight = imageView.getHeight();
-
-                    //double check my math, this should be right, though
-                    int newWidth = (int) Math.floor((orgWidth * newHeight) / orgHeight);
-
-                    //Use RelativeLayout.LayoutParams if your parent is a RelativeLayout
+                    int newHeight = mScreenHeight / 3;
                     TableRow.LayoutParams params = new TableRow.LayoutParams(
-                            newWidth, newHeight);
+                            mScreenWidth, newHeight);
                     imageView.setLayoutParams(params);
                     imageView.setScaleType(ImageView.ScaleType.CENTER_CROP);
                     tableRow.updateViewLayout(imageView, params);
@@ -211,7 +207,6 @@ public class MainActivity extends ActionBarActivity implements Callback<ImgurGal
 
             });
             tableRow.addView(imageView);
-
             mTableLayout.addView (tableRow);
         }
     }
