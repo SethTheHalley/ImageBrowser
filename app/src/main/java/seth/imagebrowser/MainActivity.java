@@ -4,17 +4,18 @@ import android.app.ProgressDialog;
 import android.app.SearchManager;
 import android.content.Context;
 import android.content.Intent;
-import android.graphics.Bitmap;
+import android.content.pm.ActivityInfo;
 import android.graphics.Point;
-import android.graphics.drawable.BitmapDrawable;
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.Display;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.Surface;
 import android.view.View;
 import android.widget.ImageView;
+import android.widget.ScrollView;
 import android.widget.SearchView;
 import android.widget.TableLayout;
 import android.widget.TableRow;
@@ -46,7 +47,11 @@ public class MainActivity extends ActionBarActivity implements Callback<ImgurGal
     private SearchView searchView;
     private ProgressDialog mProgress;
 
+    private String lastQuery;
     private int cnt;
+
+    private int hDemins;
+    private int wDemins;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -62,12 +67,42 @@ public class MainActivity extends ActionBarActivity implements Callback<ImgurGal
         mScreenWidth = size.x;
         mScreenHeight = size.y;
 
+        if(getWindowManager().getDefaultDisplay().getRotation() == Surface.ROTATION_0){
+            Log.d(TAG,"PORTRAIT");
+            hDemins=mScreenHeight/3;
+            wDemins=mScreenWidth/2;
+        }else if(getWindowManager().getDefaultDisplay().getRotation() == Surface.ROTATION_90){
+            Log.d(TAG,"LANDSCAPE");
+            hDemins=mScreenHeight;
+            wDemins=mScreenWidth/2;
+        }
+        else{
+            Log.d(TAG,"NOT THOSE ORIENTATIONS " + getWindowManager().getDefaultDisplay().getRotation());
+            hDemins=mScreenHeight/3;
+            wDemins=mScreenWidth/2;
+        }
+
+        if(savedInstanceState != null) {
+            Log.d(TAG,"RESTORING STATE");
+            lastQuery = savedInstanceState.getString("query");
+            savedInstanceState.clear();
+            savedInstanceState = null;
+            if(lastQuery != null)
+                retrieveImages(lastQuery);
+        }
     }
 
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+        if(lastQuery != null) {
+            Log.d(TAG,"SAVING STATE");
+            outState.putString("query", lastQuery);
+        }
+    }//onSaveInstanceState()
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
-        // Inflate the menu; this adds items to the action bar if it is present.
         getMenuInflater().inflate(R.menu.menu_main, menu);
 
         SearchManager searchManager = (SearchManager) getSystemService(Context.SEARCH_SERVICE);
@@ -88,6 +123,7 @@ public class MainActivity extends ActionBarActivity implements Callback<ImgurGal
 
                 searchView.clearFocus();
                 retrieveImages(query);
+                lastQuery = query;
                 searchView.setEnabled(false);
                 return true;
             }
@@ -132,7 +168,7 @@ public class MainActivity extends ActionBarActivity implements Callback<ImgurGal
     /**
      * Retrieve a list of images, based on search params
      *
-     * @param search the city whose forecast should be retrieved.
+     * @param search the string that we are searching imgur with
      */
     protected void retrieveImages(String search) {
         mTableLayout.removeAllViews();
@@ -146,7 +182,6 @@ public class MainActivity extends ActionBarActivity implements Callback<ImgurGal
         mProgress.show();
 
         if (null == search) {
-            retrieveImages(search);
             return;
         }
         ApiUtils.getImgurService().searchGallery(search, this);
@@ -174,13 +209,13 @@ public class MainActivity extends ActionBarActivity implements Callback<ImgurGal
                 final ImgurImage imgurImage = (ImgurImage)listIterator.next();
                 url = imgurImage.getLink();
                 final ImageView imageView = new ImageView(MainActivity.this);
-                Picasso.with(getApplicationContext()).load(url).resize(mScreenWidth / 2, mScreenHeight / 3).into(imageView);
+                Picasso.with(getApplicationContext()).load(url).resize(wDemins, hDemins).into(imageView);
                 imageView.post(new Runnable() {
                     @Override
                     public void run() {
                         int newHeight = mScreenHeight / 3;
                         TableRow.LayoutParams params = new TableRow.LayoutParams(
-                                mScreenWidth / 2, newHeight);
+                                wDemins, hDemins);
                         imageView.setLayoutParams(params);
                         imageView.setScaleType(ImageView.ScaleType.CENTER_CROP);
                         imageView.setOnClickListener(new View.OnClickListener() {
