@@ -13,6 +13,8 @@ import android.util.Log;
 import android.widget.ImageView;
 import android.widget.TextView;
 
+import com.squareup.picasso.Picasso;
+
 import java.io.InputStream;
 import java.util.ArrayList;
 
@@ -31,42 +33,8 @@ public class DetailActivity extends ActionBarActivity{
         String url=intent.getStringExtra("link");
         Log.d("EXTRAS","ID: " + id + " TITLE: " + title + " URL: " + url);
 
-        ((TextView)findViewById(R.id.id_textv)).setText("ID: "+id);
+        ((TextView)findViewById(R.id.id_textv)).setText("ID: " + id);
         ((TextView)findViewById(R.id.title_textv)).setText("TITLE: "+title);
-
-        ConnectivityManager connMgr = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
-        NetworkInfo networkInfo = connMgr.getActiveNetworkInfo();
-        if (networkInfo != null && networkInfo.isConnected()) {
-            new DownloadImageTask().execute(url);
-        } else {
-            // display error:
-        }
-
-    }
-
-    private class DownloadImageTask extends AsyncTask<String, Integer, Bitmap> {
-        Bitmap mIcon11;
-
-        public DownloadImageTask(){
-        }
-
-        @Override
-        protected Bitmap doInBackground(String... urls) {
-                String urldisplay = urls[0];
-                Log.d("ASYNC","URL:: " + urldisplay);
-                mIcon11 = null;
-                try {
-                    InputStream in = new java.net.URL(urldisplay).openStream();
-                    mIcon11 = BitmapFactory.decodeStream(in);
-                } catch (Exception e) {
-                    Log.e("Error", e.getMessage());
-                    e.printStackTrace();
-                }
-            return mIcon11;
-        }
-
-        protected void onPostExecute(Bitmap result){
-            ((ImageView)findViewById(R.id.detail_imageView)).setImageBitmap(result);
-        }
+        Picasso.with(getApplicationContext()).load(url).into((ImageView)findViewById(R.id.detail_imageView));
     }
 }
