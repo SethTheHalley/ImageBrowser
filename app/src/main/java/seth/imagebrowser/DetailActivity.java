@@ -1,5 +1,6 @@
 package seth.imagebrowser;
 
+import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
@@ -22,6 +23,7 @@ import java.util.ArrayList;
  * Created by Seth on 5/9/2015.
  */
 public class DetailActivity extends ActionBarActivity{
+    ProgressDialog mProgress;
     @Override
     protected void onCreate(Bundle savedInstanceState){
         super.onCreate(savedInstanceState);
@@ -35,6 +37,25 @@ public class DetailActivity extends ActionBarActivity{
 
         ((TextView)findViewById(R.id.id_textv)).setText("ID: " + id);
         ((TextView)findViewById(R.id.title_textv)).setText("TITLE: "+title);
-        Picasso.with(getApplicationContext()).load(url).into((ImageView)findViewById(R.id.detail_imageView));
+
+        // set up progress bar
+        mProgress = new ProgressDialog(this);
+        mProgress.setMessage("Loading Image...");
+        mProgress.setProgressStyle(ProgressDialog.STYLE_SPINNER);
+        mProgress.setIndeterminate(true);
+        mProgress.setCanceledOnTouchOutside(false);
+        mProgress.show();
+
+        Picasso.with(getApplicationContext()).load(url).into((ImageView)findViewById(R.id.detail_imageView), new com.squareup.picasso.Callback() {
+            @Override
+            public void onSuccess() {
+                mProgress.dismiss();
+            }
+
+            @Override
+            public void onError() {
+                mProgress.dismiss();
+            }
+        });
     }
 }

@@ -5,7 +5,7 @@
     android:layout_height="fill_parent"
     android:orientation="vertical"
     android:background="@android:color/background_dark"
-    android:tag="default_screen">
+    android:tag="tablet_screen">
 
     <SearchView
         android:layout_width="match_parent"

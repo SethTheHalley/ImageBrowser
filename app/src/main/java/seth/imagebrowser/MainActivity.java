@@ -52,6 +52,7 @@ public class MainActivity extends ActionBarActivity implements Callback<ImgurGal
 
     private int hDemins;
     private int wDemins;
+    private int numColumns;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -67,19 +68,40 @@ public class MainActivity extends ActionBarActivity implements Callback<ImgurGal
         mScreenWidth = size.x;
         mScreenHeight = size.y;
 
-        if(getWindowManager().getDefaultDisplay().getRotation() == Surface.ROTATION_0){
+        int orient = getWindowManager().getDefaultDisplay().getRotation();
+        String screen_type = (String)findViewById(R.id.main_layout).getTag();
+
+        //decide table row width/height
+        if(orient == Surface.ROTATION_0){
             Log.d(TAG,"PORTRAIT");
-            hDemins=mScreenHeight/3;
-            wDemins=mScreenWidth/2;
-        }else if(getWindowManager().getDefaultDisplay().getRotation() == Surface.ROTATION_90){
+            if(screen_type.equals("default_screen") || screen_type.equals("large_screen")) {
+                hDemins = mScreenHeight/3;
+                wDemins = mScreenWidth/2;
+                numColumns = 2;
+            }
+            else{
+                hDemins = mScreenHeight/4;
+                wDemins = mScreenWidth/3;
+                numColumns = 3;
+            }
+        }else if(orient == Surface.ROTATION_90){
             Log.d(TAG,"LANDSCAPE");
-            hDemins=mScreenHeight;
-            wDemins=mScreenWidth/2;
+            if(screen_type.equals("default_screen") || screen_type.equals("large_screen")) {
+                hDemins = mScreenHeight/2;
+                wDemins = mScreenWidth/3;
+                numColumns = 3;
+            }
+            else{
+                hDemins = mScreenHeight/3;
+                wDemins = mScreenWidth/5;
+                numColumns = 5;
+            }
         }
         else{
-            Log.d(TAG,"NOT THOSE ORIENTATIONS " + getWindowManager().getDefaultDisplay().getRotation());
+            Log.d(TAG,"UNEXPECTED OTHER ORIENTATIONS " + orient);
             hDemins=mScreenHeight/3;
             wDemins=mScreenWidth/2;
+            numColumns = 2;
         }
 
         if(savedInstanceState != null) {
@@ -205,29 +227,37 @@ public class MainActivity extends ActionBarActivity implements Callback<ImgurGal
         String url;
         while(listIterator.hasNext()){
             final TableRow tableRow = new TableRow (MainActivity.this);
-            while(listIterator.hasNext() && cnt<2) {
+            while(listIterator.hasNext() && cnt<numColumns) {
                 final ImgurImage imgurImage = (ImgurImage)listIterator.next();
                 url = imgurImage.getLink();
                 final ImageView imageView = new ImageView(MainActivity.this);
-                Picasso.with(getApplicationContext()).load(url).resize(wDemins, hDemins).into(imageView);
+                Picasso.with(getApplicationContext()).load(url).resize(wDemins, hDemins).into(imageView, new com.squareup.picasso.Callback() {
+                    @Override
+                    public void onSuccess() {
+                        mProgress.dismiss();
+                    }
+
+                    @Override
+                    public void onError() {
+                        mProgress.dismiss();
+                    }
+                });
                 imageView.post(new Runnable() {
                     @Override
                     public void run() {
-                        int newHeight = mScreenHeight / 3;
-                        TableRow.LayoutParams params = new TableRow.LayoutParams(
-                                wDemins, hDemins);
+                        TableRow.LayoutParams params = new TableRow.LayoutParams(wDemins, hDemins);
                         imageView.setLayoutParams(params);
-                        imageView.setScaleType(ImageView.ScaleType.CENTER_CROP);
                         imageView.setOnClickListener(new View.OnClickListener() {
                             @Override
                             public void onClick(View v) {
                                 Intent it = new Intent(MainActivity.this, DetailActivity.class);
                                 it.putExtra("id", imgurImage.getID());
-                                it.putExtra("title",  imgurImage.getTitle());
-                                it.putExtra("link",  imgurImage.getLink());
+                                it.putExtra("title", imgurImage.getTitle());
+                                it.putExtra("link", imgurImage.getLink());
                                 startActivity(it);
                             }
                         });
+                        imageView.setBackgroundResource(R.drawable.row_border);
                         tableRow.updateViewLayout(imageView, params);
                     }
                 });
@@ -237,6 +267,9 @@ public class MainActivity extends ActionBarActivity implements Callback<ImgurGal
             mTableLayout.addView(tableRow);
         }
         searchView.setEnabled(true);
-        mProgress.dismiss();
+        if(mImages.size()==0){
+            Toast.makeText(this, getString(R.string.no_results), Toast.LENGTH_SHORT).show();
+            mProgress.dismiss();
+        }
     }
 }
