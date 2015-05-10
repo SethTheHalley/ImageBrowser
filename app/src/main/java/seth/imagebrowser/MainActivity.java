@@ -17,6 +17,7 @@ import android.view.View;
 import android.widget.ImageView;
 import android.widget.ScrollView;
 import android.widget.SearchView;
+import android.widget.SeekBar;
 import android.widget.TableLayout;
 import android.widget.TableRow;
 import android.widget.Toast;
@@ -161,11 +162,6 @@ public class MainActivity extends ActionBarActivity implements Callback<ImgurGal
         // as you specify a parent activity in AndroidManifest.xml.
         int id = item.getItemId();
 
-        //noinspection SimplifiableIfStatement
-        if (id == R.id.action_settings) {
-            return true;
-        }
-
         return super.onOptionsItemSelected(item);
     }
 
@@ -209,6 +205,30 @@ public class MainActivity extends ActionBarActivity implements Callback<ImgurGal
         ApiUtils.getImgurService().searchGallery(search, this);
     }
 
+    /**
+     * Retrieve a list of images, based on search params
+     *
+     * @param search the string that we are searching imgur with
+     */
+    protected void retrieveImagesByPage(String search, int page) {
+        mTableLayout.removeAllViews();
+
+        // set up progress bar
+        mProgress = new ProgressDialog(this);
+        mProgress.setMessage("Finding Images...");
+        mProgress.setProgressStyle(ProgressDialog.STYLE_SPINNER);
+        mProgress.setIndeterminate(true);
+        mProgress.setCanceledOnTouchOutside(false);
+        mProgress.show();
+
+        if (null == search) {
+            return;
+        }
+        ApiUtils.getImgurService().searchGalleryPage(search, page, "time", this);
+    }
+
+    //I couldn't get the url to filter types correctly, so I filter out albums here
+    //I only want to deal with single images
     public void removeAlbums(List<ImgurImage> imgList) {
         mImages = null == imgList ? new ArrayList<ImgurImage>() : new ArrayList<>(imgList);
         ListIterator listIterator = mImages.listIterator();

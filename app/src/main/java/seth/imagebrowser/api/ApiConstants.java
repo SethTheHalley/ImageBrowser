@@ -12,6 +12,8 @@ public abstract class ApiConstants {
     public static final String HEADER_API_AUTH_VALUE = "Client-ID 0101ce3d2a8fe7c";
 
     public static final String QUERY_IMAGE_NAME = "q";
+    public static final String QUERY_PAGE_NUM= "page";
+    public static final String QUERY_IMAGE_SORT= "sort";
     public static final String IMAGE_LIST = "data";
     public static final String IMAGE_ID = "id";
     public static final String IMAGE_TITLE = "title";
