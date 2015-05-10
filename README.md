@@ -5,3 +5,5 @@ Clicking on an image takes you to another activity which displays the image as l
 and shows the image id and title.
 
 Uses retrofit for api calls, picasso for image loading.
+
+Known bug: changing orientation while picasso is loading can cause a crash. None of the fixes I tried worked.
