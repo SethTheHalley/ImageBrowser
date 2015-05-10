@@ -7,6 +7,7 @@ import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Point;
+import android.graphics.Rect;
 import android.graphics.drawable.BitmapDrawable;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
@@ -25,6 +26,9 @@ import android.widget.SearchView;
 import android.widget.TableLayout;
 import android.widget.TableRow;
 import android.widget.Toast;
+
+import com.squareup.picasso.Picasso;
+
 import java.io.InputStream;
 import java.lang.reflect.Array;
 import java.util.ArrayList;
@@ -310,29 +314,32 @@ public class MainActivity extends ActionBarActivity implements Callback<ImgurGal
         }
     }
 
+
     //inflates the table with the list of bmps
     private void populateTable (List<Bitmap> lst) {
-        for (Bitmap img : lst) {
-            mImg=img;
+        //for (Bitmap img : lst) {
+        for(String str : mLinks){
+            //mImg=img;
             final TableRow tableRow = new TableRow (MainActivity.this);
             final ImageView imageView = new ImageView (MainActivity.this);
-            imageView.setImageBitmap(img);
+            //imageView.setImageBitmap(img);
+            Picasso.with(getApplicationContext()).load(str).resize(mScreenWidth/2, mScreenHeight/3).into(imageView);
             imageView.post(new Runnable() {
 
                 @Override
                 public void run() {
                     int newHeight = mScreenHeight / 3;
                     TableRow.LayoutParams params = new TableRow.LayoutParams(
-                            mScreenWidth, newHeight);
+                            mScreenWidth/2, newHeight);
                     imageView.setLayoutParams(params);
                     imageView.setScaleType(ImageView.ScaleType.CENTER_CROP);
                     imageView.setOnClickListener(new View.OnClickListener() {
                         @Override
                         public void onClick(View v) {
-                            Bitmap bitmap = ((BitmapDrawable)imageView.getDrawable()).getBitmap();
+                            Bitmap bitmap = ((BitmapDrawable) imageView.getDrawable()).getBitmap();
                             Intent it = new Intent(MainActivity.this, DetailActivity.class);
                             it.putExtra("id", mImages.get(mBmpIndex.get(bitmap)).getID());
-                            it.putExtra("title",mImages.get(mBmpIndex.get(bitmap)).getTitle());
+                            it.putExtra("title", mImages.get(mBmpIndex.get(bitmap)).getTitle());
                             it.putExtra("link", mImages.get(mBmpIndex.get(bitmap)).getLink());
                             startActivity(it);
                         }
