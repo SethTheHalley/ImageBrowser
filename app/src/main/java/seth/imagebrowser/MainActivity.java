@@ -4,7 +4,6 @@ import android.app.ProgressDialog;
 import android.app.SearchManager;
 import android.content.Context;
 import android.content.Intent;
-import android.content.pm.ActivityInfo;
 import android.graphics.Point;
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
@@ -14,10 +13,9 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.Surface;
 import android.view.View;
+import android.widget.Button;
 import android.widget.ImageView;
-import android.widget.ScrollView;
 import android.widget.SearchView;
-import android.widget.SeekBar;
 import android.widget.TableLayout;
 import android.widget.TableRow;
 import android.widget.Toast;
@@ -47,13 +45,17 @@ public class MainActivity extends ActionBarActivity implements Callback<ImgurGal
     private int mScreenWidth;
     private SearchView searchView;
     private ProgressDialog mProgress;
+    private Button mNextButton;
+    private Button mPrevButton;
 
     private String lastQuery;
     private int cnt;
 
+    //table row/col info
     private int hDemins;
     private int wDemins;
     private int numColumns;
+    private int mPage;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -61,6 +63,9 @@ public class MainActivity extends ActionBarActivity implements Callback<ImgurGal
         setContentView(R.layout.activity_main);
 
         mTableLayout = (TableLayout)findViewById(R.id.table_layout);
+
+        //default result page num to 0
+        mPage=0;
 
         //gets screen dimensions
         Display display = getWindowManager().getDefaultDisplay();
@@ -105,23 +110,50 @@ public class MainActivity extends ActionBarActivity implements Callback<ImgurGal
             numColumns = 2;
         }
 
+        //restore imageList on orientation change
         if(savedInstanceState != null) {
             Log.d(TAG,"RESTORING STATE");
             lastQuery = savedInstanceState.getString("query");
+            mPage = savedInstanceState.getInt("page");
             savedInstanceState.clear();
             savedInstanceState = null;
-            if(lastQuery != null)
+            if(lastQuery != null && mPage==0)
                 retrieveImages(lastQuery);
+            else if(lastQuery != null && mPage!=0)
+                retrieveImagesByPage(lastQuery,mPage);
         }
+
+        //gets next page from gallery
+        mNextButton = (Button) findViewById(R.id.nextPage);
+        mNextButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if(lastQuery!=null) {
+                    retrieveImagesByPage(lastQuery, ++mPage);
+                }
+            }
+        });
+
+        //gets prev page from gallery
+        mPrevButton = (Button) findViewById(R.id.prevPage);
+        mPrevButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if(lastQuery!=null && mPage >0) {
+                    retrieveImagesByPage(lastQuery, --mPage);
+                }
+            }
+        });
     }
 
     @Override
     protected void onSaveInstanceState(Bundle outState) {
         super.onSaveInstanceState(outState);
+        Log.d(TAG, "SAVING STATE");
         if(lastQuery != null) {
-            Log.d(TAG,"SAVING STATE");
             outState.putString("query", lastQuery);
         }
+        outState.putInt("page",mPage);
     }//onSaveInstanceState()
 
     @Override
@@ -143,8 +175,8 @@ public class MainActivity extends ActionBarActivity implements Callback<ImgurGal
             //gets string from search bar
             public boolean onQueryTextSubmit(String query) {
                 Log.d(TAG, "SEARCHING FOR: " + query);
-
                 searchView.clearFocus();
+                mPage=0;
                 retrieveImages(query);
                 lastQuery = query;
                 searchView.setEnabled(false);
@@ -198,10 +230,12 @@ public class MainActivity extends ActionBarActivity implements Callback<ImgurGal
         mProgress.setIndeterminate(true);
         mProgress.setCanceledOnTouchOutside(false);
         mProgress.show();
+        //setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_NOSENSOR);
 
         if (null == search) {
             return;
         }
+        //method call to search imgur
         ApiUtils.getImgurService().searchGallery(search, this);
     }
 
@@ -209,6 +243,7 @@ public class MainActivity extends ActionBarActivity implements Callback<ImgurGal
      * Retrieve a list of images, based on search params
      *
      * @param search the string that we are searching imgur with
+     * @param page the page number that is retrieved
      */
     protected void retrieveImagesByPage(String search, int page) {
         mTableLayout.removeAllViews();
@@ -224,6 +259,7 @@ public class MainActivity extends ActionBarActivity implements Callback<ImgurGal
         if (null == search) {
             return;
         }
+        //method call to search imgur
         ApiUtils.getImgurService().searchGalleryPage(search, page, "time", this);
     }
 
@@ -238,30 +274,40 @@ public class MainActivity extends ActionBarActivity implements Callback<ImgurGal
                 listIterator.remove();
             }
         }
+        //once albums are all removed, inflate table
         populateTable();
     }
 
+    //fills the table with retrieved images using picasso
     private void populateTable () {
         ListIterator listIterator = mImages.listIterator();
         cnt=0;
         String url;
+        //loop through search results
         while(listIterator.hasNext()){
             final TableRow tableRow = new TableRow (MainActivity.this);
+            //fill each row with numColumns columns
             while(listIterator.hasNext() && cnt<numColumns) {
                 final ImgurImage imgurImage = (ImgurImage)listIterator.next();
                 url = imgurImage.getLink();
                 final ImageView imageView = new ImageView(MainActivity.this);
+                //get image, resize it, load it into its view
                 Picasso.with(getApplicationContext()).load(url).resize(wDemins, hDemins).into(imageView, new com.squareup.picasso.Callback() {
                     @Override
                     public void onSuccess() {
                         mProgress.dismiss();
+                        searchView.setEnabled(true);
+                        //setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR);
                     }
 
                     @Override
                     public void onError() {
                         mProgress.dismiss();
+                        searchView.setEnabled(true);
+                        //setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR);
                     }
                 });
+                //set on click listener for each image
                 imageView.post(new Runnable() {
                     @Override
                     public void run() {
@@ -286,10 +332,12 @@ public class MainActivity extends ActionBarActivity implements Callback<ImgurGal
             }cnt=0;
             mTableLayout.addView(tableRow);
         }
-        searchView.setEnabled(true);
+        //if no results, re-enable user interactions
         if(mImages.size()==0){
             Toast.makeText(this, getString(R.string.no_results), Toast.LENGTH_SHORT).show();
             mProgress.dismiss();
+            searchView.setEnabled(true);
+            //setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR);
         }
     }
 }

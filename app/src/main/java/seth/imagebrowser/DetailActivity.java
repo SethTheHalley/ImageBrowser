@@ -29,12 +29,14 @@ public class DetailActivity extends ActionBarActivity{
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_details);
 
+        //get image info from intent
         Intent intent = getIntent();
         String id=intent.getStringExtra("id");
         String title=intent.getStringExtra("title");
         String url=intent.getStringExtra("link");
         Log.d("EXTRAS","ID: " + id + " TITLE: " + title + " URL: " + url);
 
+        //set info into textviews
         ((TextView)findViewById(R.id.id_textv)).setText("ID: " + id);
         ((TextView)findViewById(R.id.title_textv)).setText("TITLE: "+title);
 
@@ -46,6 +48,7 @@ public class DetailActivity extends ActionBarActivity{
         mProgress.setCanceledOnTouchOutside(false);
         mProgress.show();
 
+        //get image
         Picasso.with(getApplicationContext()).load(url).into((ImageView)findViewById(R.id.detail_imageView), new com.squareup.picasso.Callback() {
             @Override
             public void onSuccess() {

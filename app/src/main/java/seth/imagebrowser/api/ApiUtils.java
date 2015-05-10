@@ -10,7 +10,6 @@ import retrofit.android.AndroidLog;
  * API related utility methods.
  */
 public abstract class ApiUtils {
-
     private static ImgurService sImgurService;
 
     protected ApiUtils() {
@@ -20,7 +19,6 @@ public abstract class ApiUtils {
         if (null == sImgurService) {
             sImgurService = createImgurService();
         }
-
         return sImgurService;
     }
 
@@ -30,7 +28,6 @@ public abstract class ApiUtils {
                 .setRequestInterceptor(new RequestInterceptor() {
                     @Override
                     public void intercept(RequestFacade request) {
-
                         request.addHeader(ApiConstants.HEADER_API_AUTH,
                                 ApiConstants.HEADER_API_AUTH_VALUE);
                     }
@@ -39,6 +36,4 @@ public abstract class ApiUtils {
                 .setLogLevel(BuildConfig.DEBUG ? LogLevel.FULL : LogLevel.NONE)
                 .build().create(ImgurService.class);
     }
-
-
 }
